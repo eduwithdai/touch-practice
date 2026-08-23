@@ -1,16 +1,61 @@
-# React + Vite
+# タッチ練習 — さわると音と光がかえってくるアプリ
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+画面をさわると、その場所から音と波紋がひろがります。
+「さわった → 何かが起きた」という手ごたえを返すことに絞ったアプリです。
 
-Currently, two official plugins are available:
+**https://eduwithdai.github.io/touch-practice/**
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## つかいかた
 
-## React Compiler
+1. 上のURLをひらく
+2. 画面のどこでもいいので、さわる
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+それだけです。設定も、ログインも、はじめるボタンもありません。
 
-## Expanding the ESLint configuration
+- **画面のどこをさわっても** — ポンと音が鳴り、さわった場所に色のついた波紋がひろがります
+- **光る玉をさわると** — キラキラと上がっていく音とドラムが鳴り、玉がはじけて、まわりに8つの波紋がひろがります
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+光る玉（絵文字が入った直径180pxの丸）は、開くと少ししてから画面のどこかに現れます。
+さわってはじけると、1秒ほどで次の玉が別の場所に出てきます。
+玉は16種類の絵文字と8色からランダムに選ばれるので、毎回ちがうものが出ます。
+
+## 先生用
+
+**右下の数字**が、さわった回数です。画面をさわった回数と玉をさわった回数の合計で、
+子どもの気が散らないよう、うっすらとしか表示していません。
+
+数字は**記録されません**。ページを開き直すと0に戻ります。
+回数を残したいときは、そのつど書き留めてください。
+
+## 使うときに気をつけること
+
+- **音は最初にさわった瞬間から鳴ります。** ブラウザは、利用者が一度も操作していないページに音を出すことを許していません。開いた直後に無音でも故障ではないので、まず一度さわってみてください
+- **音が出ないときは、本体の音量と消音スイッチを確かめてください。** とくにiPadは、消音にしているとこのアプリの音が鳴りません
+- 玉は画面の端から少し内側に出るようになっています。画面が小さいと、出る範囲もせまくなります
+- ホーム画面に追加しておくと、アドレスバーが消えて画面を広く使えます
+
+## 記録について
+
+このアプリは**何も保存も送信もしません。** さわった回数も、開いた記録も、どこにも残りません。
+
+## 動作環境
+
+iPad / パソコンの新しめのブラウザ。インターネットにつながっていれば、そのまま開けます。
+
+## 開発
+
+Vite + React。ソースは `src/TouchPracticeSound.jsx` の1ファイルです。
+
+```
+npm install
+npm run dev
+```
+
+main ブランチに push すると、GitHub Actions がビルドして
+GitHub Pages に公開します（`.github/workflows/deploy.yml`）。
+公開先が `https://eduwithdai.github.io/<リポジトリ名>/` の下になるため、
+ワークフローが `BASE_PATH` を渡し、`vite.config.js` がそれを `base` に使っています。
+
+---
+
+作成:eduwithdai
