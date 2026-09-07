@@ -18,4 +18,9 @@ export default defineConfig([
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
   },
+  {
+    // vite.config.js は Node 側で動くので process などを許可する
+    files: ['vite.config.js'],
+    languageOptions: { globals: globals.node },
+  },
 ])

@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { getMode } from "./modes";
 
 const COLORS = ["#FF6B6B","#FF922B","#FFD43B","#69DB7C","#4DABF7","#CC5DE8","#F783AC","#63E6BE"];
 const EMOJIS = ["⭐","🌟","💫","✨","🎈","🎉","🌈","❤️","🐱","🐶","🐸","🦋","🌸","🍎","🍊","🌻"];
+
+const EXIT_HOLD_MS = 800; // メニューに戻るのに押し続ける時間
 
 let idCounter = 0;
 function uid() { return ++idCounter; }
@@ -81,36 +84,89 @@ function getAudio() {
 }
 
 // ── メインコンポーネント ──────────────────────────
-export default function App() {
+export default function App({ mode, onExit }) {
+  const cfg = getMode(mode);
+
   const [effects, setEffects] = useState([]);
   const [target, setTarget] = useState(null);
   const [burst, setBurst] = useState(null);
   // タッチ＝画面にふれた回数（ターゲットに当たった分も含む）
-  // ヒット＝ターゲットをさわれた回数
+  // せいこう＝ターゲットをさわれた回数
   const [touchCount, setTouchCount] = useState(0);
   const [hitCount, setHitCount] = useState(0);
+  const [holding, setHolding] = useState(false);
+
   const areaRef = useRef(null);
   const targetTimerRef = useRef(null);
+  const targetElRef = useRef(null);
+  const holdTimerRef = useRef(null);
+  // 動く的の現在位置。毎フレーム書き換えるので state ではなく ref で持つ
+  const motionRef = useRef(null);
 
   const spawnTarget = useCallback(() => {
     if (!areaRef.current) return;
     const rect = areaRef.current.getBoundingClientRect();
-    const size = 180;
+    // 画面が小さいときは的を縮める（かんたんモードの360pxがはみ出さないように）
+    const size = Math.min(cfg.size, Math.min(rect.width, rect.height) * 0.6);
     const pad = size / 2 + 20;
-    const x = pad + Math.random() * (rect.width - pad * 2);
-    const y = pad + Math.random() * (rect.height - pad * 2);
+    const x = pad + Math.random() * Math.max(0, rect.width - pad * 2);
+    const y = pad + Math.random() * Math.max(0, rect.height - pad * 2);
+
+    // むずかしいモードはランダムな向きに飛ばす
+    const angle = Math.random() * Math.PI * 2;
+    motionRef.current = {
+      x, y, size,
+      vx: Math.cos(angle) * cfg.speed,
+      vy: Math.sin(angle) * cfg.speed,
+    };
+
     setTarget({
       id: uid(),
-      x, y,
+      x, y, size,
       emoji: EMOJIS[Math.floor(Math.random() * EMOJIS.length)],
       color: COLORS[Math.floor(Math.random() * COLORS.length)],
     });
-  }, []);
+  }, [cfg.size, cfg.speed]);
 
   useEffect(() => {
     targetTimerRef.current = setTimeout(spawnTarget, 600);
     return () => clearTimeout(targetTimerRef.current);
-  }, []);
+  }, [spawnTarget]);
+
+  useEffect(() => () => clearTimeout(holdTimerRef.current), []);
+
+  // 的を動かす（むずかしいモードのみ）。壁ではね返る
+  useEffect(() => {
+    if (!cfg.speed || !target) return;
+    let raf = 0;
+    let last = performance.now();
+
+    const step = (now) => {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      const m = motionRef.current;
+      const area = areaRef.current;
+      if (m && area) {
+        const r = m.size / 2 + 10;
+        const { width, height } = area.getBoundingClientRect();
+        m.x += m.vx * dt;
+        m.y += m.vy * dt;
+        if (m.x < r) { m.x = r; m.vx = Math.abs(m.vx); }
+        if (m.x > width - r) { m.x = width - r; m.vx = -Math.abs(m.vx); }
+        if (m.y < r) { m.y = r; m.vy = Math.abs(m.vy); }
+        if (m.y > height - r) { m.y = height - r; m.vy = -Math.abs(m.vy); }
+        const el = targetElRef.current;
+        if (el) {
+          el.style.left = `${m.x}px`;
+          el.style.top = `${m.y}px`;
+        }
+      }
+      raf = requestAnimationFrame(step);
+    };
+
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [target, cfg.speed]);
 
   // 画面のどこかをタッチ
   const handleAreaTouch = useCallback((e) => {
@@ -133,7 +189,11 @@ export default function App() {
   const handleTargetTouch = useCallback((e) => {
     e.stopPropagation();
     if (!target) return;
-    const { x, y, color } = target;
+    // 動いている的は motionRef が今の位置を持っている
+    const m = motionRef.current;
+    const x = m ? m.x : target.x;
+    const y = m ? m.y : target.y;
+    const color = target.color;
 
     // 音：キラキラ＋ドラム
     getAudio().sparkle();
@@ -161,9 +221,24 @@ export default function App() {
     setTouchCount(c => c + 1);
     setHitCount(c => c + 1);
     setTarget(null);
+    motionRef.current = null;
     clearTimeout(targetTimerRef.current);
     targetTimerRef.current = setTimeout(spawnTarget, 1200);
   }, [target, spawnTarget]);
+
+  // メニューに戻る：子どもが偶然さわっても抜けないよう、押し続けたときだけ
+  const startHold = useCallback((e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setHolding(true);
+    holdTimerRef.current = setTimeout(onExit, EXIT_HOLD_MS);
+  }, [onExit]);
+
+  const cancelHold = useCallback((e) => {
+    if (e) e.stopPropagation();
+    setHolding(false);
+    clearTimeout(holdTimerRef.current);
+  }, []);
 
   return (
     <div
@@ -215,19 +290,22 @@ export default function App() {
       {target && (
         <div
           key={target.id}
+          ref={targetElRef}
           onPointerDown={handleTargetTouch}
           style={{
             position: "fixed",
             left: target.x, top: target.y,
-            width: 180, height: 180,
+            width: target.size, height: target.size,
             transform: "translate(-50%, -50%)",
             borderRadius: "50%",
             background: `radial-gradient(circle at 35% 30%, ${target.color}ee, ${target.color}88)`,
             boxShadow: `0 0 40px ${target.color}99, 0 0 80px ${target.color}44, inset 0 0 30px rgba(255,255,255,0.2)`,
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 72,
+            fontSize: target.size * 0.4,
             cursor: "pointer",
-            animation: "floatIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275), floatBob 2s ease-in-out 0.4s infinite",
+            animation: cfg.bob
+              ? "floatIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275), floatBob 2s ease-in-out 0.4s infinite"
+              : "floatIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275)",
             zIndex: 10,
           }}
         >
@@ -235,7 +313,37 @@ export default function App() {
         </div>
       )}
 
-      {/* タッチ数・せいこう数（先生用） */}
+      {/* メニューに戻る（先生用・長押し） */}
+      <button
+        onPointerDown={startHold}
+        onPointerUp={cancelHold}
+        onPointerLeave={cancelHold}
+        onPointerCancel={cancelHold}
+        aria-label="長押しでメニューに戻る"
+        style={{
+          position: "fixed", left: 16, bottom: 14,
+          width: 68, height: 34, borderRadius: 17,
+          border: "1px solid rgba(255,255,255,0.18)",
+          background: "transparent",
+          color: "rgba(255,255,255,0.25)",
+          font: "inherit", fontSize: 11, fontFamily: "sans-serif",
+          display: "grid", placeItems: "center",
+          padding: 0, overflow: "hidden",
+          cursor: "pointer", zIndex: 20,
+          WebkitTapHighlightColor: "transparent",
+        }}
+      >
+        <span style={{
+          position: "absolute", inset: 0,
+          background: "rgba(255,255,255,0.22)",
+          transformOrigin: "left center",
+          transform: holding ? "scaleX(1)" : "scaleX(0)",
+          transition: `transform ${holding ? EXIT_HOLD_MS : 200}ms linear`,
+        }} />
+        <span style={{ position: "relative" }}>メニュー</span>
+      </button>
+
+      {/* モードとカウント（先生用） */}
       <div style={{
         position: "fixed", bottom: 14, right: 16,
         color: "rgba(255,255,255,0.25)", fontSize: 13,
@@ -244,6 +352,7 @@ export default function App() {
         fontVariantNumeric: "tabular-nums",
         zIndex: 20,
       }}>
+        <div style={{ color: cfg.accent, opacity: 0.55 }}>{cfg.label}</div>
         <div>タッチ {touchCount}</div>
         <div>せいこう {hitCount}</div>
       </div>
@@ -257,9 +366,10 @@ export default function App() {
           0%   { width:150px; height:150px; opacity:1; }
           100% { width:500px; height:500px; opacity:0; }
         }
+        /* 的の大きさがモードで変わるので、幅ではなく scale で出す */
         @keyframes floatIn {
-          from { width:0;   height:0;   opacity:0; }
-          to   { width:180px; height:180px; opacity:1; }
+          from { transform:translate(-50%, -50%) scale(0); opacity:0; }
+          to   { transform:translate(-50%, -50%) scale(1); opacity:1; }
         }
         @keyframes floatBob {
           0%,100% { transform:translate(-50%, -58%); }
