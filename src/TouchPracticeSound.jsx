@@ -85,7 +85,10 @@ export default function App() {
   const [effects, setEffects] = useState([]);
   const [target, setTarget] = useState(null);
   const [burst, setBurst] = useState(null);
+  // タッチ＝画面にふれた回数（ターゲットに当たった分も含む）
+  // ヒット＝ターゲットをさわれた回数
   const [touchCount, setTouchCount] = useState(0);
+  const [hitCount, setHitCount] = useState(0);
   const areaRef = useRef(null);
   const targetTimerRef = useRef(null);
 
@@ -156,6 +159,7 @@ export default function App() {
     }
 
     setTouchCount(c => c + 1);
+    setHitCount(c => c + 1);
     setTarget(null);
     clearTimeout(targetTimerRef.current);
     targetTimerRef.current = setTimeout(spawnTarget, 1200);
@@ -231,14 +235,17 @@ export default function App() {
         </div>
       )}
 
-      {/* タッチカウント（先生用） */}
+      {/* タッチ数・せいこう数（先生用） */}
       <div style={{
-        position: "fixed", bottom: 16, right: 16,
-        color: "rgba(255,255,255,0.25)", fontSize: 14,
+        position: "fixed", bottom: 14, right: 16,
+        color: "rgba(255,255,255,0.25)", fontSize: 13,
         fontFamily: "sans-serif", pointerEvents: "none",
+        textAlign: "right", lineHeight: 1.6,
+        fontVariantNumeric: "tabular-nums",
         zIndex: 20,
       }}>
-        {touchCount}
+        <div>タッチ {touchCount}</div>
+        <div>せいこう {hitCount}</div>
       </div>
 
       <style>{`
