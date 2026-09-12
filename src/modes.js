@@ -44,10 +44,10 @@ export const HIDDEN_MODES = [
   {
     id: 'oni',
     label: 'おに',
-    hint: 'まとが とんでもない速さで とびまわります',
+    hint: '小さな まとが とんでもない速さで とびまわります',
     emoji: '👹',
     accent: '#FF5252',
-    size: 180,
+    size: 90,   // ふつうの半分（かんたんが2倍なのに合わせた）
     bob: false,
     speed: 450, // むずかしいの3倍
   },
