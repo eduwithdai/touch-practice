@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { MODES } from './modes';
+import { useState, useRef } from 'react';
+import { MODES, ONI } from './modes';
 import { loadRecords } from './recordStore';
 import Records from './Records';
 
@@ -9,6 +9,23 @@ export default function Menu({ onSelect }) {
   const [showRecords, setShowRecords] = useState(false);
   const [count, setCount] = useState(() => loadRecords().length);
 
+  // 裏コマンド：タイトルを2秒以内に5回タップすると「おにモード」が始まる。
+  // ボタンとして出すと子どもが選んでしまうので、どこにも表示しない。
+  const tapsRef = useRef({ count: 0, since: 0 });
+  const handleSecretTap = () => {
+    const now = Date.now();
+    const t = tapsRef.current;
+    if (now - t.since > 2000) {
+      t.count = 0;
+      t.since = now;
+    }
+    t.count += 1;
+    if (t.count >= 5) {
+      t.count = 0;
+      onSelect(ONI.id);
+    }
+  };
+
   return (
     <div style={{
       width: '100vw', height: '100vh',
@@ -17,7 +34,9 @@ export default function Menu({ onSelect }) {
       userSelect: 'none', touchAction: 'manipulation',
       overflow: 'hidden',
     }}>
-      <h1 style={{
+      <h1
+        onPointerDown={handleSecretTap}
+        style={{
         margin: 0,
         padding: 'clamp(16px, 4vh, 40px) 16px clamp(8px, 2vh, 20px)',
         textAlign: 'center',
@@ -26,7 +45,9 @@ export default function Menu({ onSelect }) {
         fontWeight: 700,
         letterSpacing: '0.12em',
         textShadow: '0 0 30px rgba(120,140,255,0.5)',
-      }}>
+        cursor: 'default', // 押せるようには見せない
+      }}
+      >
         タッチ れんしゅう
       </h1>
 

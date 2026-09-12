@@ -4,6 +4,7 @@
 //   bob   : その場でふわふわ上下するか
 //   speed : 画面を動き回る速さ(px/秒)。0 なら動かない
 
+// メニューに出る3つ
 export const MODES = [
   {
     id: 'easy',
@@ -37,8 +38,27 @@ export const MODES = [
   },
 ];
 
+// メニューには出さない裏モード。
+// タイトルを5回つづけてタップすると始まる（Menu.jsx）。
+export const HIDDEN_MODES = [
+  {
+    id: 'oni',
+    label: 'おに',
+    hint: 'まとが とんでもない速さで とびまわります',
+    emoji: '👹',
+    accent: '#FF5252',
+    size: 180,
+    bob: false,
+    speed: 450, // むずかしいの3倍
+  },
+];
+
+export const ONI = HIDDEN_MODES[0];
+
 export const DEFAULT_MODE = 'normal';
 
+const ALL_MODES = [...MODES, ...HIDDEN_MODES];
+
 export function getMode(id) {
-  return MODES.find(m => m.id === id) || MODES.find(m => m.id === DEFAULT_MODE);
+  return ALL_MODES.find(m => m.id === id) || ALL_MODES.find(m => m.id === DEFAULT_MODE);
 }
