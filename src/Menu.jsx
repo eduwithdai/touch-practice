@@ -1,8 +1,14 @@
+import { useState } from 'react';
 import { MODES } from './modes';
+import { loadRecords } from './recordStore';
+import Records from './Records';
 
 // モードえらび画面。ボタンは画面の高さいっぱいに3等分して、
 // どこを押しても選べるくらい大きくとってある。
 export default function Menu({ onSelect }) {
+  const [showRecords, setShowRecords] = useState(false);
+  const [count, setCount] = useState(() => loadRecords().length);
+
   return (
     <div style={{
       width: '100vw', height: '100vh',
@@ -70,6 +76,32 @@ export default function Menu({ onSelect }) {
           </button>
         ))}
       </div>
+
+      {/* きろくを見る（先生用） */}
+      <div style={{
+        flexShrink: 0, textAlign: 'center',
+        padding: '0 16px clamp(10px, 2vh, 20px)',
+      }}>
+        <button
+          onClick={() => setShowRecords(true)}
+          style={{
+            border: '1px solid rgba(255,255,255,0.16)', borderRadius: 16,
+            background: 'transparent', color: 'rgba(255,255,255,0.3)',
+            font: 'inherit', fontSize: 11, fontFamily: 'sans-serif',
+            padding: '7px 18px', cursor: 'pointer',
+            WebkitTapHighlightColor: 'transparent',
+          }}
+        >
+          きろく {count}けん
+        </button>
+      </div>
+
+      {showRecords && (
+        <Records onClose={() => {
+          setShowRecords(false);
+          setCount(loadRecords().length); // 「ぜんぶ消す」のあとを反映させる
+        }} />
+      )}
 
       <style>{`
         button:focus-visible {

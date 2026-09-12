@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { getMode } from "./modes";
+import HoldButton from "./HoldButton";
+import { addRecord } from "./recordStore";
 
 const COLORS = ["#FF6B6B","#FF922B","#FFD43B","#69DB7C","#4DABF7","#CC5DE8","#F783AC","#63E6BE"];
 const EMOJIS = ["⭐","🌟","💫","✨","🎈","🎉","🌈","❤️","🐱","🐶","🐸","🦋","🌸","🍎","🍊","🌻"];
-
-const EXIT_HOLD_MS = 800; // メニューに戻るのに押し続ける時間
 
 let idCounter = 0;
 function uid() { return ++idCounter; }
@@ -94,12 +94,11 @@ export default function App({ mode, onExit }) {
   // せいこう＝ターゲットをさわれた回数
   const [touchCount, setTouchCount] = useState(0);
   const [hitCount, setHitCount] = useState(0);
-  const [holding, setHolding] = useState(false);
+  const [toast, setToast] = useState(null);
 
   const areaRef = useRef(null);
   const targetTimerRef = useRef(null);
   const targetElRef = useRef(null);
-  const holdTimerRef = useRef(null);
   // 動く的の現在位置。毎フレーム書き換えるので state ではなく ref で持つ
   const motionRef = useRef(null);
 
@@ -133,7 +132,13 @@ export default function App({ mode, onExit }) {
     return () => clearTimeout(targetTimerRef.current);
   }, [spawnTarget]);
 
-  useEffect(() => () => clearTimeout(holdTimerRef.current), []);
+  // 「ほぞんしました」などの短い知らせを自動で消す
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 1800);
+    return () => clearTimeout(t);
+  }, [toast]);
+
 
   // 的を動かす（むずかしいモードのみ）。壁ではね返る
   useEffect(() => {
@@ -226,19 +231,20 @@ export default function App({ mode, onExit }) {
     targetTimerRef.current = setTimeout(spawnTarget, 1200);
   }, [target, spawnTarget]);
 
-  // メニューに戻る：子どもが偶然さわっても抜けないよう、押し続けたときだけ
-  const startHold = useCallback((e) => {
-    e.stopPropagation();
-    e.preventDefault();
-    setHolding(true);
-    holdTimerRef.current = setTimeout(onExit, EXIT_HOLD_MS);
-  }, [onExit]);
-
-  const cancelHold = useCallback((e) => {
-    if (e) e.stopPropagation();
-    setHolding(false);
-    clearTimeout(holdTimerRef.current);
-  }, []);
+  // いまの回の成績を、日付・レベルといっしょに端末に残す
+  const handleSave = useCallback(() => {
+    const ok = addRecord({
+      at: new Date().toISOString(),
+      mode: cfg.id,
+      level: cfg.label,
+      touch: touchCount,
+      hit: hitCount,
+    });
+    setToast({
+      id: uid(),
+      text: ok ? "ほぞんしました" : "ほぞんできませんでした",
+    });
+  }, [cfg.id, cfg.label, touchCount, hitCount]);
 
   return (
     <div
@@ -314,48 +320,51 @@ export default function App({ mode, onExit }) {
       )}
 
       {/* メニューに戻る（先生用・長押し） */}
-      <button
-        onPointerDown={startHold}
-        onPointerUp={cancelHold}
-        onPointerLeave={cancelHold}
-        onPointerCancel={cancelHold}
-        aria-label="長押しでメニューに戻る"
-        style={{
-          position: "fixed", left: 16, bottom: 14,
-          width: 68, height: 34, borderRadius: 17,
-          border: "1px solid rgba(255,255,255,0.18)",
-          background: "transparent",
-          color: "rgba(255,255,255,0.25)",
-          font: "inherit", fontSize: 11, fontFamily: "sans-serif",
-          display: "grid", placeItems: "center",
-          padding: 0, overflow: "hidden",
-          cursor: "pointer", zIndex: 20,
-          WebkitTapHighlightColor: "transparent",
-        }}
-      >
-        <span style={{
-          position: "absolute", inset: 0,
-          background: "rgba(255,255,255,0.22)",
-          transformOrigin: "left center",
-          transform: holding ? "scaleX(1)" : "scaleX(0)",
-          transition: `transform ${holding ? EXIT_HOLD_MS : 200}ms linear`,
-        }} />
-        <span style={{ position: "relative" }}>メニュー</span>
-      </button>
+      <HoldButton
+        label="メニュー"
+        onHold={onExit}
+        style={{ position: "fixed", left: 16, bottom: 14, zIndex: 20 }}
+      />
 
-      {/* モードとカウント（先生用） */}
+      {/* モード・カウント・ほぞん（先生用） */}
       <div style={{
-        position: "fixed", bottom: 14, right: 16,
-        color: "rgba(255,255,255,0.25)", fontSize: 13,
-        fontFamily: "sans-serif", pointerEvents: "none",
-        textAlign: "right", lineHeight: 1.6,
-        fontVariantNumeric: "tabular-nums",
-        zIndex: 20,
+        position: "fixed", bottom: 14, right: 16, zIndex: 20,
+        display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8,
+        pointerEvents: "none", // 数字の余白でタッチを止めない
       }}>
-        <div style={{ color: cfg.accent, opacity: 0.55 }}>{cfg.label}</div>
-        <div>タッチ {touchCount}</div>
-        <div>せいこう {hitCount}</div>
+        <div style={{
+          color: "rgba(255,255,255,0.25)", fontSize: 13,
+          fontFamily: "sans-serif",
+          textAlign: "right", lineHeight: 1.6,
+          fontVariantNumeric: "tabular-nums",
+        }}>
+          <div style={{ color: cfg.accent, opacity: 0.55 }}>{cfg.label}</div>
+          <div>タッチ {touchCount}</div>
+          <div>せいこう {hitCount}</div>
+        </div>
+        <HoldButton
+          label="ほぞん"
+          onHold={handleSave}
+          style={{ pointerEvents: "auto" }}
+        />
       </div>
+
+      {/* ほぞんの知らせ */}
+      {toast && (
+        <div key={toast.id} style={{
+          position: "fixed", left: "50%", bottom: 70,
+          transform: "translateX(-50%)",
+          padding: "9px 20px", borderRadius: 18,
+          background: "rgba(255,255,255,0.13)",
+          border: "1px solid rgba(255,255,255,0.22)",
+          color: "rgba(255,255,255,0.8)", fontSize: 13,
+          fontFamily: "sans-serif", whiteSpace: "nowrap",
+          pointerEvents: "none", zIndex: 25,
+          animation: "toastIn 0.25s ease-out",
+        }}>
+          {toast.text}
+        </div>
+      )}
 
       <style>{`
         @keyframes rippleOut {
@@ -374,6 +383,10 @@ export default function App({ mode, onExit }) {
         @keyframes floatBob {
           0%,100% { transform:translate(-50%, -58%); }
           50%     { transform:translate(-50%, -42%); }
+        }
+        @keyframes toastIn {
+          from { opacity:0; transform:translateX(-50%) translateY(8px); }
+          to   { opacity:1; transform:translateX(-50%) translateY(0); }
         }
         @keyframes twinkle {
           0%,100% { opacity:0.2; transform:scale(0.8); }
