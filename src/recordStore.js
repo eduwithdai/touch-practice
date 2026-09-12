@@ -26,6 +26,16 @@ export function addRecord(rec) {
   }
 }
 
+// 一覧をまるごと書き戻す（1件消すときに使う）
+export function saveRecords(list) {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(list.slice(0, LIMIT)));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function clearRecords() {
   try {
     localStorage.removeItem(KEY);

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import HoldButton from './HoldButton';
-import { loadRecords, clearRecords, formatStamp } from './recordStore';
+import { loadRecords, saveRecords, clearRecords, formatStamp } from './recordStore';
 import { getMode } from './modes';
 
 // 保存したきろくの一覧（先生用）。メニュー画面の上にかぶせて出す。
@@ -10,6 +10,13 @@ export default function Records({ onClose }) {
   const handleClear = () => {
     clearRecords();
     setRecords([]);
+  };
+
+  // 1件だけ消す。番号のずれを避けるため、消したあとの一覧を丸ごと書き戻す
+  const handleDelete = (index) => {
+    const next = records.filter((_, i) => i !== index);
+    saveRecords(next);
+    setRecords(next);
   };
 
   return (
@@ -57,6 +64,7 @@ export default function Records({ onClose }) {
                 <th style={th}>レベル</th>
                 <th style={{ ...th, textAlign: 'right' }}>タッチ</th>
                 <th style={{ ...th, textAlign: 'right' }}>せいこう</th>
+                <th style={{ ...th, textAlign: 'right' }} aria-label="1件ずつ消す" />
               </tr>
             </thead>
             <tbody>
@@ -66,6 +74,17 @@ export default function Records({ onClose }) {
                   <td style={{ ...td, color: getMode(r.mode).accent, opacity: 0.85 }}>{r.level}</td>
                   <td style={{ ...td, textAlign: 'right' }}>{r.touch}</td>
                   <td style={{ ...td, textAlign: 'right' }}>{r.hit}</td>
+                  <td style={{ ...td, textAlign: 'right', paddingLeft: 14 }}>
+                    <HoldButton
+                      label="けす"
+                      onHold={() => handleDelete(i)}
+                      style={{
+                        width: 52, height: 26, borderRadius: 13, fontSize: 10,
+                        color: 'rgba(255,150,150,0.6)', borderColor: 'rgba(255,120,120,0.3)',
+                      }}
+                      fill="rgba(255,110,110,0.3)"
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>
