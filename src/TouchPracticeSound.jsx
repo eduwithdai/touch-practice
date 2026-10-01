@@ -6,6 +6,10 @@ import { addRecord } from "./recordStore";
 const COLORS = ["#FF6B6B","#FF922B","#FFD43B","#69DB7C","#4DABF7","#CC5DE8","#F783AC","#63E6BE"];
 const EMOJIS = ["⭐","🌟","💫","✨","🎈","🎉","🌈","❤️","🐱","🐶","🐸","🦋","🌸","🍎","🍊","🌻"];
 
+const MILESTONE = 10;      // この回数ごとに、ごほうび音を豪華にする
+const IDLE_MS = 8000;     // これだけさわらないと呼びかける
+const MAX_CALLS = 6;      // 呼びかけの上限。置きっぱなしでも鳴り続けないように
+
 let idCounter = 0;
 function uid() { return ++idCounter; }
 
@@ -73,7 +77,29 @@ function createAudio() {
     src.start();
   }
 
-  return { pop, sparkle, drum };
+  // 10回ごとのごほうび音。かけ上がり＋低音の土台＋最後に和音を重ねる
+  function fanfare() {
+    [523, 659, 784, 1047, 1319, 1568, 2093].forEach((f, i) => {
+      tone(f, 0.22, "triangle", 0.3, i * 0.06);
+    });
+    tone(131, 0.7, "sine", 0.3, 0);     // 低いド
+    tone(196, 0.7, "sine", 0.22, 0);    // 低いソ
+    [1047, 1319, 1568, 2093].forEach(f => {
+      tone(f, 0.9, "triangle", 0.2, 0.46); // 最後のジャーン
+    });
+    for (let i = 0; i < 8; i++) {
+      tone(2093 + Math.random() * 2000, 0.25, "sine", 0.1, 0.52 + i * 0.07);
+    }
+  }
+
+  // しばらくさわらないときの呼びかけ。おどろかせないようゆっくりめのチャイム
+  function attention() {
+    [784, 1047, 880, 659].forEach((f, i) => {
+      tone(f, 0.5, "sine", 0.28, i * 0.24);
+    });
+  }
+
+  return { pop, sparkle, drum, fanfare, attention };
 }
 
 // シングルトン
@@ -95,12 +121,19 @@ export default function App({ mode, onExit }) {
   const [touchCount, setTouchCount] = useState(0);
   const [hitCount, setHitCount] = useState(0);
   const [toast, setToast] = useState(null);
+  const [attracting, setAttracting] = useState(false); // 呼びかけ中
 
   const areaRef = useRef(null);
   const targetTimerRef = useRef(null);
   const targetElRef = useRef(null);
   // 動く的の現在位置。毎フレーム書き換えるので state ではなく ref で持つ
   const motionRef = useRef(null);
+  // せいこう数の控え。StrictMode で更新関数が2回走っても音が重ならないよう、
+  // 音を鳴らす判定はこちらの ref で行う
+  const hitCountRef = useRef(0);
+  const lastTouchRef = useRef(0);   // 最後にさわった時刻
+  const callCountRef = useRef(0);   // 連続で呼びかけた回数
+  const startedRef = useRef(false); // 一度でもさわったか
 
   const spawnTarget = useCallback(() => {
     if (!areaRef.current) return;
@@ -173,22 +206,59 @@ export default function App({ mode, onExit }) {
     return () => cancelAnimationFrame(raf);
   }, [target, cfg.speed]);
 
+  const addRipple = useCallback((x, y, color) => {
+    const id = uid();
+    setEffects(prev => [...prev, { id, x, y, color }]);
+    setTimeout(() => setEffects(prev => prev.filter(ef => ef.id !== id)), 800);
+  }, []);
+
+  // さわられたことを控える。呼びかけの時計はここで巻き戻る
+  const noteActivity = useCallback(() => {
+    startedRef.current = true;
+    lastTouchRef.current = Date.now();
+    callCountRef.current = 0;
+    setAttracting(false);
+  }, []);
+
+  // しばらく反応がないときに、音と波紋で注意を引く
+  const callAttention = useCallback(() => {
+    getAudio().attention();
+    setAttracting(true);
+    const m = motionRef.current;
+    const rect = areaRef.current?.getBoundingClientRect();
+    const cx = m ? m.x : (rect ? rect.width / 2 : 0);
+    const cy = m ? m.y : (rect ? rect.height / 2 : 0);
+    // 的のまわりに輪を広げて、見てほしい場所を示す
+    for (let i = 0; i < 3; i++) {
+      setTimeout(() => addRipple(cx, cy, COLORS[Math.floor(Math.random() * COLORS.length)]), i * 220);
+    }
+  }, [addRipple]);
+
+  // 0.5秒ごとに、最後にさわってからの時間を見るだけの軽い見張り
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (!startedRef.current) return;              // 最初のタッチまでは鳴らさない
+      if (callCountRef.current >= MAX_CALLS) return; // 呼びかけすぎない
+      if (Date.now() - lastTouchRef.current < IDLE_MS) return;
+      callCountRef.current += 1;
+      lastTouchRef.current = Date.now();
+      callAttention();
+    }, 500);
+    return () => clearInterval(id);
+  }, [callAttention]);
+
   // 画面のどこかをタッチ
   const handleAreaTouch = useCallback((e) => {
     e.preventDefault();
     const x = e.clientX;
     const y = e.clientY;
     const color = COLORS[Math.floor(Math.random() * COLORS.length)];
-    const id = uid();
 
-    // 音
     getAudio().pop();
-
-    // 波紋
-    setEffects(prev => [...prev, { id, x, y, color }]);
-    setTimeout(() => setEffects(prev => prev.filter(ef => ef.id !== id)), 800);
+    addRipple(x, y, color);
     setTouchCount(c => c + 1);
-  }, []);
+    noteActivity();
+  }, [addRipple, noteActivity]);
 
   // ターゲットをタッチ
   const handleTargetTouch = useCallback((e) => {
@@ -200,9 +270,19 @@ export default function App({ mode, onExit }) {
     const y = m ? m.y : target.y;
     const color = target.color;
 
-    // 音：キラキラ＋ドラム
-    getAudio().sparkle();
-    getAudio().drum();
+    // 10回目のせいこうごとに、ごほうび音を豪華にする
+    const nextHit = hitCountRef.current + 1;
+    hitCountRef.current = nextHit;
+    const milestone = nextHit % MILESTONE === 0;
+
+    if (milestone) {
+      getAudio().fanfare();
+      getAudio().drum();
+      setTimeout(() => getAudio().drum(), 460); // 最後のジャーンに合わせてもう一打
+    } else {
+      getAudio().sparkle();
+      getAudio().drum();
+    }
 
     // バースト
     const burstId = uid();
@@ -224,12 +304,13 @@ export default function App({ mode, onExit }) {
     }
 
     setTouchCount(c => c + 1);
-    setHitCount(c => c + 1);
+    setHitCount(nextHit);
+    noteActivity();
     setTarget(null);
     motionRef.current = null;
     clearTimeout(targetTimerRef.current);
     targetTimerRef.current = setTimeout(spawnTarget, 1200);
-  }, [target, spawnTarget]);
+  }, [target, spawnTarget, noteActivity]);
 
   // いまの回の成績を、日付・レベルといっしょに端末に残す
   const handleSave = useCallback(() => {
@@ -309,9 +390,11 @@ export default function App({ mode, onExit }) {
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: target.size * 0.4,
             cursor: "pointer",
-            animation: cfg.bob
-              ? "floatIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275), floatBob 2s ease-in-out 0.4s infinite"
-              : "floatIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275)",
+            animation: [
+              "floatIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275)",
+              cfg.bob && "floatBob 2s ease-in-out 0.4s infinite",
+              attracting && "attentionGlow 1.1s ease-in-out infinite",
+            ].filter(Boolean).join(", "),
             zIndex: 10,
           }}
         >
@@ -387,6 +470,12 @@ export default function App({ mode, onExit }) {
         @keyframes toastIn {
           from { opacity:0; transform:translateX(-50%) translateY(8px); }
           to   { opacity:1; transform:translateX(-50%) translateY(0); }
+        }
+        /* 呼びかけ中の明滅。transform ではなく filter を動かすので
+           floatBob と同時にかけても打ち消し合わない */
+        @keyframes attentionGlow {
+          0%,100% { filter:brightness(1); }
+          50%     { filter:brightness(1.7); }
         }
         @keyframes twinkle {
           0%,100% { opacity:0.2; transform:scale(0.8); }

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import HoldButton from './HoldButton';
-import { loadRecords, saveRecords, clearRecords, formatStamp } from './recordStore';
+import { loadRecords, saveRecords, clearRecords, formatStamp, successRate } from './recordStore';
 import { getMode } from './modes';
 
 // 保存したきろくの一覧（先生用）。メニュー画面の上にかぶせて出す。
@@ -64,6 +64,7 @@ export default function Records({ onClose }) {
                 <th style={th}>レベル</th>
                 <th style={{ ...th, textAlign: 'right' }}>タッチ</th>
                 <th style={{ ...th, textAlign: 'right' }}>せいこう</th>
+                <th style={{ ...th, textAlign: 'right' }}>せいこう率</th>
                 <th style={{ ...th, textAlign: 'right' }} aria-label="1件ずつ消す" />
               </tr>
             </thead>
@@ -74,6 +75,9 @@ export default function Records({ onClose }) {
                   <td style={{ ...td, color: getMode(r.mode).accent, opacity: 0.85 }}>{r.level}</td>
                   <td style={{ ...td, textAlign: 'right' }}>{r.touch}</td>
                   <td style={{ ...td, textAlign: 'right' }}>{r.hit}</td>
+                  <td style={{ ...td, textAlign: 'right', color: 'rgba(255,255,255,0.95)' }}>
+                    {successRate(r) === null ? '—' : `${successRate(r)}%`}
+                  </td>
                   <td style={{ ...td, textAlign: 'right', paddingLeft: 14 }}>
                     <HoldButton
                       label="けす"

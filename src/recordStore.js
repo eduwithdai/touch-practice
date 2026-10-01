@@ -45,6 +45,12 @@ export function clearRecords() {
   }
 }
 
+// せいこう率。1回もさわっていないときは出しようがないので null を返す
+export function successRate(record) {
+  if (!record || !record.touch) return null;
+  return Math.round((record.hit / record.touch) * 100);
+}
+
 // 2026/9/12 14:03 の形にする
 export function formatStamp(iso) {
   const d = new Date(iso);
