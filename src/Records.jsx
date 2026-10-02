@@ -25,6 +25,7 @@ export default function Records({ onClose }) {
       background: '#07071a',
       display: 'flex', flexDirection: 'column',
       padding: 'clamp(14px, 3vh, 28px) clamp(12px, 4vw, 48px)',
+      paddingBottom: 'calc(clamp(14px, 3vh, 28px) + var(--copyright-h))',
       fontFamily: 'sans-serif', color: 'rgba(255,255,255,0.85)',
     }}>
       <header style={{

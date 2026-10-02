@@ -22,3 +22,33 @@ body {
   -webkit-tap-highlight-color: transparent;
   box-sizing: border-box;
 }
+
+/* ── 著作権表示 ───────────────────────────────
+   どの画面でも、いちばん下に細い線で区切って出す。
+   高さは各画面が下の余白を確保するのに使う。 */
+:root {
+  --copyright-h: 26px;
+}
+
+.copyright {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  pointer-events: none; /* 子どもがここをさわっても、下の遊び画面に届くように */
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 5px 8px;
+  text-align: center;
+  font-size: 10px;
+  line-height: 1.4;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.22);
+}
+
+/* 印刷・PDFには出さない */
+@media print {
+  .copyright {
+    display: none !important;
+  }
+}

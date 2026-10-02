@@ -149,6 +149,17 @@ GitHub Pages に公開します（`.github/workflows/deploy.yml`）。
 公開先が `https://eduwithdai.github.io/<リポジトリ名>/` の下になるため、
 ワークフローが `BASE_PATH` を渡し、`vite.config.js` がそれを `base` に使っています。
 
+## 著作権表示
+
+どの画面でも、いちばん下に細い線で区切って
+`© 2026 eduwithdai. All rights reserved.` と出ます。
+
+- 年をまたぐと `© 2026–2027` のように、その年まで自動で伸びます（[src/copyrightYears.js](src/copyrightYears.js)）
+- 印刷・PDFには出ません（`@media print` で消しています）
+- 子どもの遊び画面にも出ますが、**さわっても反応しません**。
+  `pointer-events: none` にしてあるので、この帯の上をタッチしても
+  ふつうどおり音と波紋が出ます
+
 ---
 
 作成:eduwithdai

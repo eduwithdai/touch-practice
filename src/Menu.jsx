@@ -101,7 +101,7 @@ export default function Menu({ onSelect }) {
       {/* きろくを見る（先生用） */}
       <div style={{
         flexShrink: 0, textAlign: 'center',
-        padding: '0 16px clamp(10px, 2vh, 20px)',
+        padding: '0 16px calc(clamp(10px, 2vh, 20px) + var(--copyright-h))',
       }}>
         <button
           onClick={() => setShowRecords(true)}

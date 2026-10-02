@@ -406,12 +406,12 @@ export default function App({ mode, onExit }) {
       <HoldButton
         label="メニュー"
         onHold={onExit}
-        style={{ position: "fixed", left: 16, bottom: 14, zIndex: 20 }}
+        style={{ position: "fixed", left: 16, bottom: "calc(14px + var(--copyright-h))", zIndex: 20 }}
       />
 
       {/* モード・カウント・ほぞん（先生用） */}
       <div style={{
-        position: "fixed", bottom: 14, right: 16, zIndex: 20,
+        position: "fixed", bottom: "calc(14px + var(--copyright-h))", right: 16, zIndex: 20,
         display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8,
         pointerEvents: "none", // 数字の余白でタッチを止めない
       }}>
@@ -435,7 +435,7 @@ export default function App({ mode, onExit }) {
       {/* ほぞんの知らせ */}
       {toast && (
         <div key={toast.id} style={{
-          position: "fixed", left: "50%", bottom: 70,
+          position: "fixed", left: "50%", bottom: "calc(70px + var(--copyright-h))",
           transform: "translateX(-50%)",
           padding: "9px 20px", borderRadius: 18,
           background: "rgba(255,255,255,0.13)",
